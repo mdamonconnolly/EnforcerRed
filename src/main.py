@@ -50,30 +50,9 @@ class EnforcerRed(discord.Client):
                 for post in self.subreddit.new(limit=1):
 
                     if lastPost != post and lastPost != None:    
-                        self.output.out_meta('NEW POST DETECTED...')
-                        if post.author in self.subreddit.moderator():
-                            embColor = discord.colour.Color.from_rgb(120, 255, 120)
-                        elif re.search(self.settings['expressions']['predator'], post.title) or re.search(self.settings['expressions']['predator'], post.selftext):
-                            embColor = discord.colour.Color.from_rgb(255, 100, 100)
-                        elif re.search(self.settings['expressions']['outsideGroups'], post.title):
-                            embColor = discord.colour.Color.from_rgb(240, 170, 10)
-                        else:
-                            embColor = discord.colour.Color.from_rgb(50, 150, 255)
-
-                        emb = discord.Embed(
-                                            title=post.title,
-                                            author=post.author, 
-                                            type="rich", 
-                                            description=post.selftext[:250],
-                                            color=embColor)  
-
-                        emb.add_field(name="score", value=post.score, inline=False)
-                        emb.add_field(name="status", value="member", inline=False)
-                        emb.add_field(name="Url", value=post.url, inline=False)
-                            
+                        self.output.out_success('NEW POST DETECTED...')                        
                         channel = self.get_channel(self.settings["Settings"]["LiveFeedChannel"])
-                        await channel.send(embed=emb)
-
+                        await channel.send(embed=self.post_to_embed(post, mode='full', secretMode=False)[0])
                         lastPost = post
                     
                     elif lastPost == None:
@@ -105,9 +84,11 @@ class EnforcerRed(discord.Client):
     async def set_channel_live(self, message, *args):
         if "stop" in message.content:
             self.settings["Settings"]["LiveFeedChannel"] = ""
+            self.output.out_message('Live Feed Stopped...')
             return
         elif "here" in message.content:
             self.settings["Settings"]["LiveFeedChannel"] = message.channel.id
+            self.output.out_message(f'Live Feed set to {message.channel.name}')
 
 
     #Queries
@@ -124,36 +105,13 @@ class EnforcerRed(discord.Client):
             postLists.append(post)
 
         for post in postLists:
-
             self.output.out_message(f'Posting embed for: {post.title[:16]}... by {post.author}')
-
-            if post.author in self.subreddit.moderator():
-                embColor = discord.colour.Color.from_rgb(120, 255, 120)
-            elif re.search(self.settings['expressions']['predator'], post.title) or re.search(self.settings['expressions']['predator'], post.selftext):
-                embColor = discord.colour.Color.from_rgb(255, 100, 100)
-            elif re.search(self.settings['expressions']['outsideGroups'], post.title):
-                embColor = discord.colour.Color.from_rgb(240, 170, 10)
-            else:
-                embColor = discord.colour.Color.from_rgb(50, 150, 255)
-
-            emb = discord.Embed(
-                                title=post.title,
-                                author=post.author, 
-                                type="rich", 
-                                description=post.selftext[:250],
-                                color=embColor)  
-
-            emb.add_field(name="score", value=post.score, inline=False)
-            emb.add_field(name="status", value="member", inline=False)
-            emb.add_field(name="Url", value=post.url, inline=False)
-                
-            await message.channel.send(embed=emb)
-
+            await message.channel.send(embed=self.post_to_embed(post, mode='standard', secretMode=False)[0])
             self.output.out_success('Post successfully sent!')
 
 
 
-    async def fetch_posts_minimal(self, message, range=5):
+    async def fetch_posts_minimal(self, message, range=5, *args):
         """
         Fetches the post in a smaller, more compact style.
         :param message: the message with the command.
@@ -165,22 +123,7 @@ class EnforcerRed(discord.Client):
             postLists.append(post)
 
         for post in postLists:
-            if post.author in self.subreddit.moderator():
-                embColor = discord.colour.Color.from_rgb(120, 255, 120)
-            elif re.search(self.settings['expressions']['predator'], post.title) or re.search(self.settings['expressions']['predator'], post.selftext):
-                embColor = discord.colour.Color.from_rgb(255, 100, 100)
-            elif re.search(self.settings['expressions']['outsideGroups'], post.title):
-                embColor = discord.colour.Color.from_rgb(240, 170, 10)
-            else:
-                embColor = discord.colour.Color.from_rgb(50, 150, 255)
-
-            emb = discord.Embed(
-                                title=post.title,
-                                author=post.author,
-                                color=embColor
-                                )
-            emb.add_field(name="Url", value=post.url, inline=False)
-            await message.channel.send(embed=emb)
+            await message.channel.send(embed=self.post_to_embed(post, mode='compact', secretMode=False)[0])
             self.output.out_success('Post successfully sent!')
 
 
@@ -241,6 +184,60 @@ class EnforcerRed(discord.Client):
         self.output.out_success(f"Completed search for {outString}.")
 
 
+    #Utility Functions
+
+    def post_to_embed(self, post, mode='standard', color=True, secretMode=True):
+        """
+        post_to_embed converts a post to an embed, but actually returns a tuple containing both
+        the embed and also an "importance" int. Certain things in the post add to importance
+        which can later be used to weigh up priority posts.
+        :param post: the post to be converted.
+        :param mode: Mode of the embed display, standard, full or compact.
+        :param secret: Whether to color code the suspicious/rule breakers 
+        """
+
+        importance = 0
+        
+        #if Mod
+        if post.author in self.subreddit.moderator():
+            embedColor = discord.colour.Color.from_rgb(*self.colorTable["green"])
+            importance += 2
+        else:
+            embedColor = discord.colour.Color.from_rgb(*self.colorTable["blue"])
+        
+        #Check for predatory posts, under 13's, under 16's, etc.
+        if secretMode == False:
+
+            if ( re.search(self.settings['expressions']['outsideGroups'], post.title) or
+                re.search(self.settings['expressions']['outsideGroups'], post.selftext)):
+                embedColor = discord.colour.Color.from_rgb(*self.colorTable["orange"])
+                importance += 1
+
+            if ( re.search(self.settings['expressions']['predator'], post.title) or
+                re.search(self.settings['expressions']['predator'], post.selftext)):
+                embedColor = discord.colour.Color.from_rgb(*self.colorTable["red"])
+                importance += 2
+
+
+        #Build the embed
+        embed = discord.Embed(
+                                title=post.title,
+                                author=post.author,
+                                type="rich",
+                                color=embedColor
+                            )
+
+        if mode == 'standard':
+            embed.description = post.selftext[:120]
+        elif mode == 'full':
+            embed.description = post.selftext
+            embed.add_field(name='score', value=post.score, inline=False)
+
+        embed.add_field(name='url', value=post.url, inline=False)
+
+        return (embed, importance)
+
+
 
     """
     The IO table is a lookup table for users to interact with the bot via a set of function pointers.
@@ -257,6 +254,18 @@ class EnforcerRed(discord.Client):
             "tinyfetch" : fetch_posts_minimal,
             "find" : find_posts
         }
+    }
+
+
+    """
+    The Color lookup is less about the reusing of colors and more about the ability to see (at a glance)
+    what color each alert type will be using.
+    """
+    colorTable = {
+        "green" : (120, 255, 120),
+        "blue" : (50, 150, 255),
+        "red" : (255, 100, 100),
+        "orange" : (230, 120, 18)
     }
 
 
