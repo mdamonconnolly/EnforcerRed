@@ -17,14 +17,14 @@ class Output:
 
     def printRunStamp(self):
         time = arrow.now().format("YYYY-MM-DD HH:mm:ss")
-        print(f'\n\nEnforcer Red started!\nTime: {time}\nVersion: {self.parent.version}\n\n')
+        print(f'\n\nEnforcer Red started!\nTime: {time}\nVersion: {self.parent.version}\n')
 
         if self.textLog == False:
             return
 
         with open('Log.txt', 'a') as file:
             file.write(
-               f'\n\n\n\n================\nEnforcer: Red started!\nTime: {time}\nVersion: 0.2.0\n================' 
+               f'\n\n\n================\nEnforcer: Red started!\nTime: {time}\nVersion: {self.parent.version}\n================' 
             )
 
 

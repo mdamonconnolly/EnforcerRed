@@ -7,22 +7,19 @@ class EnforcerRed(discord.Client):
         super().__init__()
 
         self.version = "0.2.6"
-        self.output = Output.Output(False, False, parent=self)
+        self.output = Output.Output(debug=True, log=False, parent=self)
         
         with open('config.json', 'r') as file:
             self.settings = json.load(file)
 
         self.reddit = praw.Reddit('erBot')
         self.subreddit = self.reddit.subreddit(self.settings['Reddit']['target'])
-
-        self.LiveScan = self.settings['Settings']['LiveScan']
-
         self.run(self.settings['DiscordBot']['token'])
 
 
 
     async def on_ready(self):
-        print("Ready to go!")
+        self.output.out_message('Initialization complete... Running bot.')
         self.loop.create_task(self.get_new_posts())
 
 
@@ -34,7 +31,7 @@ class EnforcerRed(discord.Client):
         #Convert message to command and args using ioTable
         if message.content[0] in self.ioTable:
             
-            self.output.out_message(f'command recieved: {message.content} from {message.author}')
+            self.output.out_message(f'Message recieved: {message.content} from {message.author}.')
 
             fmessage = message.content.split(' ')
             cmd, args = fmessage[0], fmessage[1:]
@@ -44,17 +41,19 @@ class EnforcerRed(discord.Client):
     #Auto
     async def get_new_posts(self):
         lastPost = None
-
         while True:         
             if self.settings["Settings"]["LiveFeedChannel"] != "":
-
                 for post in self.subreddit.new(limit=1):
+
                     if lastPost != post and lastPost != None:    
-                        self.output.out_success('NEW POST DETECTED...')                        
+                        self.output.out_message(f'New post detected from {post.author}...')                        
                         channel = self.get_channel(self.settings["Settings"]["LiveFeedChannel"])
                         await channel.send(embed=self.post_to_embed(post, mode='full', secretMode=False)[0])
+
+                        self.output.out_message(f'last post set to: {post}')
                         lastPost = post
                     elif lastPost == None:
+                        self.output.out_message(f'Most recent post not new, setting last post set to: {post}')
                         lastPost = post
             
             await asyncio.sleep(self.settings["Settings"]["TickRate"])
@@ -104,9 +103,8 @@ class EnforcerRed(discord.Client):
             postLists.append(post)
 
         for post in postLists:
-            self.output.out_message(f'Posting embed for: {post.title[:16]}... by {post.author}')
             await message.channel.send(embed=self.post_to_embed(post, mode='standard', secretMode=False)[0])
-            self.output.out_success('Post successfully sent!')
+        self.output.out_success(f'successfully fetched {range} posts.')
 
 
 
@@ -123,7 +121,8 @@ class EnforcerRed(discord.Client):
 
         for post in postLists:
             await message.channel.send(embed=self.post_to_embed(post, mode='compact', secretMode=False)[0])
-            self.output.out_success('Post successfully sent!')
+        
+        self.output.out_success(f'successfully fetched {range} posts.')
 
 
 
@@ -145,8 +144,8 @@ class EnforcerRed(discord.Client):
 
         #User search
         if outString[:2] == 'u/':
+            self.output.out_message(f'searching reddit for user {outString}')
             for post in self.subreddit.new(limit=2000):
-                print(post.author)
                 if post.author == outString[2:]:
                     postList.append(post)
                     if len(postList) >= self.settings['Settings']['MaxSearch']:
@@ -154,22 +153,26 @@ class EnforcerRed(discord.Client):
 
         #Regex search
         elif outString[:2] == 'r/':
+            self.output.out_message(f'searching reddit for expression {outString}')
             for post in self.subreddit.new(limit=2000):
-                print(post.author)
                 if re.search(outString[2:], post.title) or re.search(outString[2:], post.selftext):
                     postList.append(post)
                     if len(postList) >= self.settings['Settings']['MaxSearch']:
                         break
         #Text search
         else:
+            self.output.out_message(f'searching reddit for string {outString}')
             for post in self.subreddit.new(limit=2000):
-                print(post.author)
                 if outString in post.title or outString in post.selftext:
                     postList.append(post)
                     if len(postList) >= self.settings['Settings']['MaxSearch']:
                         break
 
         #Print results
+        if len(postList) < 1:
+            self.output.out_message(f'{outString} could not be found.')
+            await message.channel.send(f'{outString} could not be found.')
+
         for post in postList:
             embColor = discord.colour.Color.from_rgb(50, 150, 255)
             emb = discord.Embed(
@@ -219,20 +222,24 @@ class EnforcerRed(discord.Client):
 
 
         #Build the embed
-        embed = discord.Embed(
-                                title=post.title,
-                                author=post.author,
-                                type="rich",
-                                color=embedColor
-                            )
+        try:
+            embed = discord.Embed(
+                                    title=post.title,
+                                    author=post.author,
+                                    type="rich",
+                                    color=embedColor
+                                )
 
-        if mode == 'standard':
-            embed.description = post.selftext[:120]
-        elif mode == 'full':
-            embed.description = post.selftext
-            embed.add_field(name='score', value=post.score, inline=False)
+            if mode == 'standard':
+                embed.description = post.selftext[:120]
+            elif mode == 'full':
+                embed.description = post.selftext
+                embed.add_field(name='score', value=post.score, inline=False)
 
-        embed.add_field(name='url', value=post.url, inline=False)
+            embed.add_field(name='url', value=post.url, inline=False)
+        
+        except Exception as e:
+            self.output.out_error(f'Error creating embed: {e}')
 
         return (embed, importance)
 
