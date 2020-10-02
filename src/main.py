@@ -5,7 +5,9 @@ class EnforcerRed(discord.Client):
 
     def __init__(self):
         super().__init__()
-        self.output = Output.Output(False, False)
+
+        self.version = "0.2.6"
+        self.output = Output.Output(False, False, parent=self)
         
         with open('config.json', 'r') as file:
             self.settings = json.load(file)
@@ -36,7 +38,6 @@ class EnforcerRed(discord.Client):
 
             fmessage = message.content.split(' ')
             cmd, args = fmessage[0], fmessage[1:]
-
             func = self.ioTable[cmd[0]][cmd[1:]]
             await func(self, message, *args)
 
@@ -48,13 +49,11 @@ class EnforcerRed(discord.Client):
             if self.settings["Settings"]["LiveFeedChannel"] != "":
 
                 for post in self.subreddit.new(limit=1):
-
                     if lastPost != post and lastPost != None:    
                         self.output.out_success('NEW POST DETECTED...')                        
                         channel = self.get_channel(self.settings["Settings"]["LiveFeedChannel"])
                         await channel.send(embed=self.post_to_embed(post, mode='full', secretMode=False)[0])
                         lastPost = post
-                    
                     elif lastPost == None:
                         lastPost = post
             

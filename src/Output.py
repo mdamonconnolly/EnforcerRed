@@ -17,7 +17,7 @@ class Output:
 
     def printRunStamp(self):
         time = arrow.now().format("YYYY-MM-DD HH:mm:ss")
-        print(f'\n\nEnforcer Red v0.2 started!\nTime: {time}\nVersion: 0.2.6\n\n')
+        print(f'\n\nEnforcer Red started!\nTime: {time}\nVersion: {self.parent.version}\n\n')
 
         if self.textLog == False:
             return
