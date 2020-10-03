@@ -1,10 +1,10 @@
 import arrow
 
 """
-The output module contains all of the I/O functionality.
+The Logger module contains all of the output functionality. Consider name change.
 """
 
-class Output:
+class Logger:
 
     def __init__(self, debug=False, log=False, parent=None):
         print("Interface Initialized")
