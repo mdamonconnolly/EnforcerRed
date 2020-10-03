@@ -1,5 +1,5 @@
 import discord, json, praw, re, asyncio
-import output
+import logger, dbInterface
 
 class EnforcerRed(discord.Client):
 
@@ -7,10 +7,12 @@ class EnforcerRed(discord.Client):
         super().__init__()
 
         self.version = "0.3.0"
-        self.output = Output.Output(debug=True, log=False, parent=self)
+        self.logger = logger.Logger(debug=True, log=False, parent=self)
         
         with open('config.json', 'r') as file:
             self.settings = json.load(file)
+
+        self.db = dbInterface.dbInterface(parent=self, logger=self.logger)
 
         self.reddit = praw.Reddit('erBot')
         self.subreddit = self.reddit.subreddit(self.settings['Reddit']['target'])
@@ -19,7 +21,7 @@ class EnforcerRed(discord.Client):
 
 
     async def on_ready(self):
-        self.output.out_message('Initialization complete... Running bot.')
+        self.logger.out_message('Initialization complete... Running bot.')
         self.loop.create_task(self.get_new_posts())
 
 
@@ -31,7 +33,7 @@ class EnforcerRed(discord.Client):
         #Convert message to command and args using ioTable
         if message.content[0] in self.ioTable:
             
-            self.output.out_message(f'Message recieved: {message.content} from {message.author}.')
+            self.logger.out_message(f'Message recieved: {message.content} from {message.author}.')
 
             fmessage = message.content.split(' ')
             cmd, args = fmessage[0], fmessage[1:]
@@ -46,14 +48,14 @@ class EnforcerRed(discord.Client):
                 for post in self.subreddit.new(limit=1):
 
                     if lastPost != post and lastPost != None:    
-                        self.output.out_message(f'New post detected from {post.author}...')                        
+                        self.logger.out_message(f'New post detected from {post.author}...')                        
                         channel = self.get_channel(self.settings["Settings"]["LiveFeedChannel"])
                         await channel.send(embed=self.post_to_embed(post, mode='full', secretMode=False)[0])
 
-                        self.output.out_message(f'last post set to: {post}')
+                        self.logger.out_message(f'last post set to: {post}')
                         lastPost = post
                     elif lastPost == None:
-                        self.output.out_message(f'Most recent post not new, setting last post set to: {post}')
+                        self.logger.out_message(f'Most recent post not new, setting last post set to: {post}')
                         lastPost = post
             
             await asyncio.sleep(self.settings["Settings"]["TickRate"])
@@ -73,20 +75,20 @@ class EnforcerRed(discord.Client):
                 await msg.delete()
                 messageNum += 1
 
-            self.output.out_success(f"{messageNum} messages deleted successfully from {message.channel}")
+            self.logger.out_success(f"{messageNum} messages deleted successfully from {message.channel}")
         except Exception as e:
             await message.channel.send(f"Error printed to logs: {e}")
-            self.output.out_error(f"Exception: {e}")
+            self.logger.out_error(f"Exception: {e}")
 
 
     async def set_channel_live(self, message, *args):
         if "stop" in message.content:
             self.settings["Settings"]["LiveFeedChannel"] = ""
-            self.output.out_message('Live Feed Stopped...')
+            self.logger.out_message('Live Feed Stopped...')
             return
         elif "here" in message.content:
             self.settings["Settings"]["LiveFeedChannel"] = message.channel.id
-            self.output.out_message(f'Live Feed set to {message.channel.name}')
+            self.logger.out_message(f'Live Feed set to {message.channel.name}')
 
 
     #Queries
@@ -104,7 +106,7 @@ class EnforcerRed(discord.Client):
 
         for post in postLists:
             await message.channel.send(embed=self.post_to_embed(post, mode='standard', secretMode=False)[0])
-        self.output.out_success(f'successfully fetched {range} posts.')
+        self.logger.out_success(f'successfully fetched {range} posts.')
 
 
 
@@ -122,7 +124,7 @@ class EnforcerRed(discord.Client):
         for post in postLists:
             await message.channel.send(embed=self.post_to_embed(post, mode='compact', secretMode=False)[0])
         
-        self.output.out_success(f'successfully fetched {range} posts.')
+        self.logger.out_success(f'successfully fetched {range} posts.')
 
 
 
@@ -144,7 +146,7 @@ class EnforcerRed(discord.Client):
 
         #User search
         if outString[:2] == 'u/':
-            self.output.out_message(f'searching reddit for user {outString}')
+            self.logger.out_message(f'searching reddit for user {outString}')
             for post in self.subreddit.new(limit=2000):
                 if post.author == outString[2:]:
                     postList.append(post)
@@ -153,7 +155,7 @@ class EnforcerRed(discord.Client):
 
         #Regex search
         elif outString[:2] == 'r/':
-            self.output.out_message(f'searching reddit for expression {outString}')
+            self.logger.out_message(f'searching reddit for expression {outString}')
             for post in self.subreddit.new(limit=2000):
                 if re.search(outString[2:], post.title) or re.search(outString[2:], post.selftext):
                     postList.append(post)
@@ -161,7 +163,7 @@ class EnforcerRed(discord.Client):
                         break
         #Text search
         else:
-            self.output.out_message(f'searching reddit for string {outString}')
+            self.logger.out_message(f'searching reddit for string {outString}')
             for post in self.subreddit.new(limit=2000):
                 if outString in post.title or outString in post.selftext:
                     postList.append(post)
@@ -170,7 +172,7 @@ class EnforcerRed(discord.Client):
 
         #Print results
         if len(postList) < 1:
-            self.output.out_message(f'{outString} could not be found.')
+            self.logger.out_message(f'{outString} could not be found.')
             await message.channel.send(f'{outString} could not be found.')
 
         for post in postList:
@@ -183,7 +185,7 @@ class EnforcerRed(discord.Client):
             emb.add_field(name="Url", value=post.url, inline=False)
             await message.channel.send(embed=emb)
 
-        self.output.out_success(f"Completed search for {outString}.")
+        self.logger.out_success(f"Completed search for {outString}.")
 
 
     #Utility Functions
@@ -239,7 +241,7 @@ class EnforcerRed(discord.Client):
             embed.add_field(name='url', value=post.url, inline=False)
         
         except Exception as e:
-            self.output.out_error(f'Error creating embed: {e}')
+            self.logger.out_error(f'Error creating embed: {e}')
 
         return (embed, importance)
 
