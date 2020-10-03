@@ -1,12 +1,12 @@
 import discord, json, praw, re, asyncio
-import Output
+import output
 
 class EnforcerRed(discord.Client):
 
     def __init__(self):
         super().__init__()
 
-        self.version = "0.2.6"
+        self.version = "0.3.0"
         self.output = Output.Output(debug=True, log=False, parent=self)
         
         with open('config.json', 'r') as file:
