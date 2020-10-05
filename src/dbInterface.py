@@ -27,12 +27,14 @@ class dbInterface:
         Makes sure the necessary tables are set up.
         """
         cursor = self.db.cursor()
+
         try:
             cursor.execute("""CREATE TABLE IF NOT EXISTS users (
                                 id integer PRIMARY KEY,
                                 name text NOT NULL,
                                 discord text,
-                                reddit text                                       
+                                reddit text,
+                                notes text                                       
                                 );        
                                 """)
 
@@ -40,7 +42,9 @@ class dbInterface:
                                 id integer PRIMARY KEY,
                                 title text NOT NULL,
                                 body text,
-                                author, text NOT NULL
+                                author text NOT NULL,
+                                notes text,
+                                FOREIGN KEY (user) REFERENCES users (id)
                                 );
                                 """)
 
@@ -49,9 +53,23 @@ class dbInterface:
                                 user text NOT NULL,
                                 offense text NOT NULL,
                                 responder text NOT NULL,
-                                response text NOT NULL
+                                response text NOT NULL,
+                                notes text,
+                                FOREIGN KEY (user) REFERENCES users (id)
                                 );
                                 """)
             self.logger.out_message('Successfully set up tables.')
         except Exception as e:
             self.logger.out_error(f'Could not create tables: {e}')
+
+
+
+    def add_user(self, *args):
+        """
+        The add_user function takes in a string to add, and adds it to the database.
+        :param *args: List of usernames to be added. 
+        """
+        cursor = self.db.cursor()
+        
+        #for entry in args:
+            #find if name already in db and connect up
