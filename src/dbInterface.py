@@ -33,7 +33,8 @@ class dbInterface:
                                 id integer PRIMARY KEY,
                                 name text NOT NULL,
                                 discord text,
-                                reddit text                                       
+                                reddit text,
+                                notes text                                       
                                 );        
                                 """)
 
@@ -41,7 +42,9 @@ class dbInterface:
                                 id integer PRIMARY KEY,
                                 title text NOT NULL,
                                 body text,
-                                author text NOT NULL
+                                author text NOT NULL,
+                                notes text,
+                                FOREIGN KEY (user) REFERENCES users (id)
                                 );
                                 """)
 
@@ -50,7 +53,9 @@ class dbInterface:
                                 user text NOT NULL,
                                 offense text NOT NULL,
                                 responder text NOT NULL,
-                                response text NOT NULL
+                                response text NOT NULL,
+                                notes text,
+                                FOREIGN KEY (user) REFERENCES users (id)
                                 );
                                 """)
             self.logger.out_message('Successfully set up tables.')
@@ -64,9 +69,7 @@ class dbInterface:
         The add_user function takes in a string to add, and adds it to the database.
         :param *args: List of usernames to be added. 
         """
+        cursor = self.db.cursor()
         
-        if len(args) < 1:
-            logger.out_error('DB_Error. Can only call add_user if arguments are provided.')
-            return
-        
-
+        #for entry in args:
+            #find if name already in db and connect up

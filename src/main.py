@@ -267,7 +267,11 @@ class EnforcerRed(discord.Client):
                 message.channel.send(f'username {username} not valid.. Must have either u/ to start, or digits (#0000) to end!')
                 return
         
-        #Checks successful. Add user
+        #Checks successful. Add users
+        try:
+            self.db.add_user(args)
+        except Exception as e:
+            logger.out_error(f'Error adding to database: {e}')
 
 
     """
