@@ -27,6 +27,7 @@ class dbInterface:
         Makes sure the necessary tables are set up.
         """
         cursor = self.db.cursor()
+
         try:
             cursor.execute("""CREATE TABLE IF NOT EXISTS users (
                                 id integer PRIMARY KEY,
@@ -40,7 +41,7 @@ class dbInterface:
                                 id integer PRIMARY KEY,
                                 title text NOT NULL,
                                 body text,
-                                author, text NOT NULL
+                                author text NOT NULL
                                 );
                                 """)
 
@@ -55,3 +56,17 @@ class dbInterface:
             self.logger.out_message('Successfully set up tables.')
         except Exception as e:
             self.logger.out_error(f'Could not create tables: {e}')
+
+
+
+    def add_user(self, *args):
+        """
+        The add_user function takes in a string to add, and adds it to the database.
+        :param *args: List of usernames to be added. 
+        """
+        
+        if len(args) < 1:
+            logger.out_error('DB_Error. Can only call add_user if arguments are provided.')
+            return
+        
+
