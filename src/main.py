@@ -176,21 +176,14 @@ class EnforcerRed(discord.Client):
             await message.channel.send(f'{outString} could not be found.')
 
         for post in postList:
-            embColor = discord.colour.Color.from_rgb(50, 150, 255)
-            emb = discord.Embed(
-                                    title=post.title[:50],
-                                    author=post.author,
-                                    color=embColor
-                                    )
-            emb.add_field(name="Url", value=post.url, inline=False)
-            await message.channel.send(embed=emb)
+            await message.channel.send(embed=self.post_to_embed(post, mode='compact', secretMode=False)[0])
 
         self.logger.out_success(f"Completed search for {outString}.")
 
 
     #Utility Functions
 
-    def post_to_embed(self, post, mode='standard', color=True, secretMode=True):
+    def post_to_embed(self, post, mode='standard', color=True, secretMode=True, comments=False):
         """
         post_to_embed converts a post to an embed, but actually returns a tuple containing both
         the embed and also an "importance" int. Certain things in the post add to importance
@@ -221,6 +214,11 @@ class EnforcerRed(discord.Client):
                 re.search(self.settings['expressions']['predator'], post.selftext)):
                 embedColor = discord.colour.Color.from_rgb(*self.colorTable["red"])
                 importance += 2
+
+        #Check comments
+        for comment in post.comments:
+            
+            print(comment.author)
 
 
         #Build the embed
