@@ -21,9 +21,14 @@ class EnforcerRed(discord.Client):
 
 
     async def on_ready(self):
+        """
+        Startup function.
+        """
         self.logger.out_message('Initialization complete... Running bot.')
         self.loop.create_task(self.get_new_posts())
 
+        #Create botmod list
+        self.guards = [name for name in self.settings["Security"]["Guards"].split(' ') if len(name) > 2]
 
 
     async def on_message(self, message):
@@ -42,6 +47,7 @@ class EnforcerRed(discord.Client):
 
     #Auto
     async def get_new_posts(self):
+
         lastPost = None
         while True:         
             if self.settings["Settings"]["LiveFeedChannel"] != "":
@@ -58,6 +64,7 @@ class EnforcerRed(discord.Client):
                         self.logger.out_message(f'Most recent post not new, setting last post set to: {post}')
                         lastPost = post
             
+            print(f"Guards: {self.guards}") #
             await asyncio.sleep(self.settings["Settings"]["TickRate"])
 
 
@@ -89,6 +96,29 @@ class EnforcerRed(discord.Client):
         elif "here" in message.content:
             self.settings["Settings"]["LiveFeedChannel"] = message.channel.id
             self.logger.out_message(f'Live Feed set to {message.channel.name}')
+
+
+    async def set_guard(self, message, command=None, *args):
+        """
+        Adds or removes guards from the guard list. 
+        :param command: Whether to add or remove.
+        :param *args: the list of users to add or remove
+        """
+
+        if command.lower() == 'add':
+            for user in args:
+                self.guards.append(user)
+        elif command.lower() == 'remove':
+            for user in args:
+                if user in self.guards:
+                    self.guards.remove(user)
+
+        #Save updated list
+        try:
+            with open("config.json", 'w') as file:
+                json.dump(self.settings, file)
+        except Exception as e:
+            self.logger.error(f'Exception: {e}')
 
 
     #Queries
@@ -280,7 +310,8 @@ class EnforcerRed(discord.Client):
     ioTable = {
         "!" : {
             "purge" : purge_messages,
-            "feed" : set_channel_live
+            "feed" : set_channel_live,
+            "guard" : set_guard 
         },
         "?" : {
             "fetch" : fetch_posts,
