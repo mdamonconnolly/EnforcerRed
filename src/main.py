@@ -64,7 +64,6 @@ class EnforcerRed(discord.Client):
                         self.logger.out_message(f'Most recent post not new, setting last post set to: {post}')
                         lastPost = post
             
-            print(f"Guards: {self.guards}") #
             await asyncio.sleep(self.settings["Settings"]["TickRate"])
 
 
@@ -213,6 +212,9 @@ class EnforcerRed(discord.Client):
 
     #Utility Functions
 
+    def classify_post(self, post):
+        pass
+
     def post_to_embed(self, post, mode='standard', color=True, secretMode=True, comments=False):
         """
         post_to_embed converts a post to an embed, but actually returns a tuple containing both
@@ -220,7 +222,7 @@ class EnforcerRed(discord.Client):
         which can later be used to weigh up priority posts.
         :param post: the post to be converted.
         :param mode: Mode of the embed display, standard, full or compact.
-        :param secret: Whether to color code the suspicious/rule breakers 
+        :param secret: Whether to color code the suspicious/rule breakers.
         """
 
         importance = 0
@@ -228,7 +230,6 @@ class EnforcerRed(discord.Client):
         #if Mod
         if post.author in self.subreddit.moderator():
             embedColor = discord.colour.Color.from_rgb(*self.colorTable["green"])
-            importance += 2
         else:
             embedColor = discord.colour.Color.from_rgb(*self.colorTable["blue"])
         
@@ -246,15 +247,14 @@ class EnforcerRed(discord.Client):
                 importance += 2
 
         #Check comments
-        for comment in post.comments:
-            
-            print(comment.author)
+        #for comment in post.comments:    
+            #print(comment.author)
 
 
         #Build the embed
         try:
             embed = discord.Embed(
-                                    title=post.title,
+                                    title=post.title[:180],
                                     author=post.author,
                                     type="rich",
                                     color=embedColor
