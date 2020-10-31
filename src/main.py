@@ -6,7 +6,7 @@ class EnforcerRed(discord.Client):
     def __init__(self):
         super().__init__()
 
-        self.version = "0.3.0"
+        self.version = "0.3.5"
         self.logger = logger.Logger(debug=True, log=False, parent=self)
         
         with open('config.json', 'r') as file:
