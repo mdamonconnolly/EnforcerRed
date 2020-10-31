@@ -1,18 +1,18 @@
 import discord, json, praw, re, asyncio
-import logger, dbInterface
+import logger, erLists
 
 class EnforcerRed(discord.Client):
 
     def __init__(self):
         super().__init__()
 
-        self.version = "0.3.0"
+        self.version = "0.3.5"
         self.logger = logger.Logger(debug=True, log=False, parent=self)
         
         with open('config.json', 'r') as file:
             self.settings = json.load(file)
 
-        self.db = dbInterface.dbInterface(parent=self, logger=self.logger)
+        self.lists = erLists.initialize()
 
         self.reddit = praw.Reddit('erBot')
         self.subreddit = self.reddit.subreddit(self.settings['Reddit']['target'])
@@ -21,9 +21,14 @@ class EnforcerRed(discord.Client):
 
 
     async def on_ready(self):
+        """
+        Startup function.
+        """
         self.logger.out_message('Initialization complete... Running bot.')
         self.loop.create_task(self.get_new_posts())
 
+        #Create botmod list
+        self.guards = [name for name in self.settings["Security"]["Guards"].split(' ') if len(name) > 2]
 
 
     async def on_message(self, message):
@@ -42,6 +47,7 @@ class EnforcerRed(discord.Client):
 
     #Auto
     async def get_new_posts(self):
+
         lastPost = None
         while True:         
             if self.settings["Settings"]["LiveFeedChannel"] != "":
@@ -89,6 +95,29 @@ class EnforcerRed(discord.Client):
         elif "here" in message.content:
             self.settings["Settings"]["LiveFeedChannel"] = message.channel.id
             self.logger.out_message(f'Live Feed set to {message.channel.name}')
+
+
+    async def set_guard(self, message, command=None, *args):
+        """
+        Adds or removes guards from the guard list. 
+        :param command: Whether to add or remove.
+        :param *args: the list of users to add or remove
+        """
+
+        if command.lower() == 'add':
+            for user in args:
+                self.guards.append(user)
+        elif command.lower() == 'remove':
+            for user in args:
+                if user in self.guards:
+                    self.guards.remove(user)
+
+        #Save updated list
+        try:
+            with open("config.json", 'w') as file:
+                json.dump(self.settings, file)
+        except Exception as e:
+            self.logger.error(f'Exception: {e}')
 
 
     #Queries
@@ -176,28 +205,24 @@ class EnforcerRed(discord.Client):
             await message.channel.send(f'{outString} could not be found.')
 
         for post in postList:
-            embColor = discord.colour.Color.from_rgb(50, 150, 255)
-            emb = discord.Embed(
-                                    title=post.title[:50],
-                                    author=post.author,
-                                    color=embColor
-                                    )
-            emb.add_field(name="Url", value=post.url, inline=False)
-            await message.channel.send(embed=emb)
+            await message.channel.send(embed=self.post_to_embed(post, mode='compact', secretMode=False)[0])
 
         self.logger.out_success(f"Completed search for {outString}.")
 
 
     #Utility Functions
 
-    def post_to_embed(self, post, mode='standard', color=True, secretMode=True):
+    def classify_post(self, post):
+        pass
+
+    def post_to_embed(self, post, mode='standard', color=True, secretMode=True, comments=False):
         """
         post_to_embed converts a post to an embed, but actually returns a tuple containing both
         the embed and also an "importance" int. Certain things in the post add to importance
         which can later be used to weigh up priority posts.
         :param post: the post to be converted.
         :param mode: Mode of the embed display, standard, full or compact.
-        :param secret: Whether to color code the suspicious/rule breakers 
+        :param secret: Whether to color code the suspicious/rule breakers.
         """
 
         importance = 0
@@ -205,7 +230,6 @@ class EnforcerRed(discord.Client):
         #if Mod
         if post.author in self.subreddit.moderator():
             embedColor = discord.colour.Color.from_rgb(*self.colorTable["green"])
-            importance += 2
         else:
             embedColor = discord.colour.Color.from_rgb(*self.colorTable["blue"])
         
@@ -222,11 +246,15 @@ class EnforcerRed(discord.Client):
                 embedColor = discord.colour.Color.from_rgb(*self.colorTable["red"])
                 importance += 2
 
+        #Check comments
+        #for comment in post.comments:    
+            #print(comment.author)
+
 
         #Build the embed
         try:
             embed = discord.Embed(
-                                    title=post.title,
+                                    title=post.title[:180],
                                     author=post.author,
                                     type="rich",
                                     color=embedColor
@@ -282,7 +310,8 @@ class EnforcerRed(discord.Client):
     ioTable = {
         "!" : {
             "purge" : purge_messages,
-            "feed" : set_channel_live
+            "feed" : set_channel_live,
+            "guard" : set_guard 
         },
         "?" : {
             "fetch" : fetch_posts,

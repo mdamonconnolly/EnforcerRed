@@ -1,5 +1,6 @@
 __pycache__/
 config.json
+*Copy.json
 *db
 *.txt
 praw.ini
