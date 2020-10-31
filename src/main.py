@@ -1,5 +1,5 @@
 import discord, json, praw, re, asyncio
-import logger, dbInterface
+import logger, erLists
 
 class EnforcerRed(discord.Client):
 
@@ -12,7 +12,7 @@ class EnforcerRed(discord.Client):
         with open('config.json', 'r') as file:
             self.settings = json.load(file)
 
-        self.db = dbInterface.dbInterface(parent=self, logger=self.logger)
+        self.lists = erLists.initialize()
 
         self.reddit = praw.Reddit('erBot')
         self.subreddit = self.reddit.subreddit(self.settings['Reddit']['target'])
