@@ -134,7 +134,7 @@ class EnforcerRed(discord.Client):
             postLists.append(post)
 
         for post in postLists:
-            await message.channel.send(embed=self.post_to_embed(post, mode='standard', secretMode=False)[0])
+            await message.channel.send(embed=self.process_post(post)[0])
         self.logger.out_success(f'successfully fetched {range} posts.')
 
 
@@ -212,66 +212,64 @@ class EnforcerRed(discord.Client):
 
     #Utility Functions
 
-    def classify_post(self, post):
-        pass
 
-    def post_to_embed(self, post, mode='standard', color=True, secretMode=True, comments=False):
+    def process_post(self, post):
         """
-        post_to_embed converts a post to an embed, but actually returns a tuple containing both
-        the embed and also an "importance" int. Certain things in the post add to importance
-        which can later be used to weigh up priority posts.
-        :param post: the post to be converted.
-        :param mode: Mode of the embed display, standard, full or compact.
-        :param secret: Whether to color code the suspicious/rule breakers.
+        Process the post and check for rule breakers, and so on, and decide what information
+        gets pass over to the embedd and what gets logged
+        :param post: The post to be analyzed.
         """
+        print(f"processing post for {post.author}")
+        alertLevel = 0
+        alerts = []
 
-        importance = 0
-        
-        #if Mod
+        ## Set the default embed color for a post
         if post.author in self.subreddit.moderator():
             embedColor = discord.colour.Color.from_rgb(*self.colorTable["green"])
         else:
             embedColor = discord.colour.Color.from_rgb(*self.colorTable["blue"])
+
+        for exp in self.settings['expressions']:
+            if (re.search(self.settings['expressions'][exp], post.title) or
+                re.search(self.settings['expressions'][exp], post.selftext)):
+                    alertLevel += 1
+                    alerts.append(exp)
+            
+            for comment in post.comments:
+                if (re.search(self.settings['expressions'][exp], comment.body)):
+                    alertLevel += 1
+                    alerts.append(f"comment_{comment.author}")
+
+        if alertLevel > 3:
+            embedColor = discord.colour.Color.from_rgb(*self.colorTable["orange"]) #TODO: Add yellow color
+        elif alertLevel > 1:
+            embedColor = discord.colour.Color.from_rgb(*self.colorTable["red"])
+        return (self.post_to_embed(post, embedColor=embedColor, expanded=True), alertLevel, alerts)
+
         
-        #Check for predatory posts, under 13's, under 16's, etc.
-        if secretMode == False:
+    def post_to_embed(self, post, embedColor=None, expanded=False):
+        """
+        Generates an embed from the post passed in.
+        :param embedColor: The color of the embeds sidebar.
+        :param expanded: If true, the generated embed will be more detailed.
+        """
 
-            if ( re.search(self.settings['expressions']['outsideGroups'], post.title) or
-                re.search(self.settings['expressions']['outsideGroups'], post.selftext)):
-                embedColor = discord.colour.Color.from_rgb(*self.colorTable["orange"])
-                importance += 1
+        if embedColor == None:
+            embedColor = discord.colour.Color.from_rgb(*self.colorTable["blue"])
 
-            if ( re.search(self.settings['expressions']['predator'], post.title) or
-                re.search(self.settings['expressions']['predator'], post.selftext)):
-                embedColor = discord.colour.Color.from_rgb(*self.colorTable["red"])
-                importance += 2
-
-        #Check comments
-        #for comment in post.comments:    
-            #print(comment.author)
-
-
-        #Build the embed
-        try:
-            embed = discord.Embed(
-                                    title=post.title[:180],
-                                    author=post.author,
-                                    type="rich",
-                                    color=embedColor
-                                )
-
-            if mode == 'standard':
-                embed.description = post.selftext[:120]
-            elif mode == 'full':
-                embed.description = post.selftext
-                embed.add_field(name='score', value=post.score, inline=False)
+        embed = discord.Embed(
+                                title=post.title[:180],
+                                author=post.author,
+                                type="rich",
+                                color=embedColor
+                            )
+        if expanded == True:
+            embed.description = post.selftext
+            embed.add_field(name='score', value=post.score, inline=False)
             embed.add_field(name='post_id', value=post.id, inline=False)
             embed.add_field(name='url', value=post.url, inline=False)
-        
-        except Exception as e:
-            self.logger.out_error(f'Error creating embed: {e}')
 
-        return (embed, importance)
+        return(embed)
 
 
     #Database related functions
