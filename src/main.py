@@ -189,6 +189,15 @@ class EnforcerRed(discord.Client):
                     postList.append(post)
                     if len(postList) >= self.settings['Settings']['MaxSearch']:
                         break
+
+        #Post ID search
+        elif outString[:2] == 'i/':
+            self.logger.out_message(f'searching reddit for post {outString}')
+            for post in self.subreddit.new(limit=2000):
+                if post.id == outString[2:]:
+                    postList.append(post)
+                    break
+
         #Text search
         else:
             self.logger.out_message(f'searching reddit for string {outString}')
