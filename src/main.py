@@ -63,7 +63,7 @@ class EnforcerRed(discord.Client):
                     elif lastPost == None:
                         self.logger.out_message(f'Most recent post not new, setting last post set to: {post}')
                         lastPost = post
-            
+            print(f"Guards: {self.guards}")
             await asyncio.sleep(self.settings["Settings"]["TickRate"])
 
 
@@ -103,7 +103,6 @@ class EnforcerRed(discord.Client):
         :param command: Whether to add or remove.
         :param *args: the list of users to add or remove
         """
-
         if command.lower() == 'add':
             for user in args:
                 self.guards.append(user)
@@ -151,7 +150,7 @@ class EnforcerRed(discord.Client):
             postLists.append(post)
 
         for post in postLists:
-            await message.channel.send(embed=self.post_to_embed(post, mode='compact', secretMode=False)[0])
+            await message.channel.send(embed=self.process_post(post)[0])
         
         self.logger.out_success(f'successfully fetched {range} posts.')
 
@@ -205,7 +204,8 @@ class EnforcerRed(discord.Client):
             await message.channel.send(f'{outString} could not be found.')
 
         for post in postList:
-            await message.channel.send(embed=self.post_to_embed(post, mode='compact', secretMode=False)[0])
+            #await message.channel.send(embed=self.post_to_embed(post, mode='compact'))
+            await message.channel.send(embed=self.process_post(post)[0])
 
         self.logger.out_success(f"Completed search for {outString}.")
 
@@ -216,7 +216,7 @@ class EnforcerRed(discord.Client):
     def process_post(self, post):
         """
         Process the post and check for rule breakers, and so on, and decide what information
-        gets pass over to the embedd and what gets logged
+        gets pass over to the embedd and what gets logged.
         :param post: The post to be analyzed.
         """
         print(f"processing post for {post.author}")
@@ -244,10 +244,12 @@ class EnforcerRed(discord.Client):
             embedColor = discord.colour.Color.from_rgb(*self.colorTable["orange"]) #TODO: Add yellow color
         elif alertLevel > 1:
             embedColor = discord.colour.Color.from_rgb(*self.colorTable["red"])
-        return (self.post_to_embed(post, embedColor=embedColor, expanded=True), alertLevel, alerts)
+        return (self.post_to_embed(post, embedColor=embedColor, expanded=True), 
+                alertLevel, 
+                alerts)
 
         
-    def post_to_embed(self, post, embedColor=None, expanded=False):
+    def post_to_embed(self, post, embedColor=None, expanded=False, mode="compact"):
         """
         Generates an embed from the post passed in.
         :param embedColor: The color of the embeds sidebar.
@@ -264,42 +266,11 @@ class EnforcerRed(discord.Client):
                                 color=embedColor
                             )
         if expanded == True:
-            embed.description = post.selftext
-            embed.add_field(name='score', value=post.score, inline=False)
+            embed.description = post.selftext[:200]
             embed.add_field(name='post_id', value=post.id, inline=False)
             embed.add_field(name='url', value=post.url, inline=False)
 
         return(embed)
-
-
-    #Database related functions
-    def db_add_user(self, message, *args):
-        """
-        Add user to database. Aside from actually adding the user to the database, this function
-        can also take other usernames (reddit accounts) to connect to their identity.
-
-        :param *args: list of names to provide.
-        """
-
-        if len(args) <= 0:
-            self.logger.out_error('Unable to add to database: no user provided...')
-            message.channel.send('Unable to add to the database! You need to provide a username to add!')
-            return
-        
-        for username in args:
-
-            if username[:2] != 'u/' or re.search(self.settings['expressions']['validUser'], username) == False:
-                self.logger.out_error(f'Invalid user {username} added! db write aborted!')
-                message.channel.send(f'username {username} not valid.. Must have either u/ to start, or digits (#0000) to end!')
-                return
-        
-        #Checks successful. Add users
-        try:
-            self.db.add_user(args)
-        except Exception as e:
-            logger.out_error(f'Error adding to database: {e}')
-
-
     """
     The IO table is a lookup table for users to interact with the bot via a set of function pointers.
     Input commands are split into dictionary access, such as ioTable["!"]["purge"], whos value is a
