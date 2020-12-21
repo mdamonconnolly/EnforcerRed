@@ -56,7 +56,7 @@ class EnforcerRed(discord.Client):
                     if lastPost != post and lastPost != None:    
                         self.logger.out_message(f'New post detected from {post.author}...')                        
                         channel = self.get_channel(self.settings["Settings"]["LiveFeedChannel"])
-                        await channel.send(embed=self.post_to_embed(post, mode='full', secretMode=False)[0])
+                        await channel.send(embed=self.process_post(post))
 
                         self.logger.out_message(f'last post set to: {post}')
                         lastPost = post
@@ -133,7 +133,7 @@ class EnforcerRed(discord.Client):
             postLists.append(post)
 
         for post in postLists:
-            await message.channel.send(embed=self.process_post(post)[0])
+            await message.channel.send(embed=self.process_post(post))
         self.logger.out_success(f'successfully fetched {range} posts.')
 
 
@@ -150,7 +150,7 @@ class EnforcerRed(discord.Client):
             postLists.append(post)
 
         for post in postLists:
-            await message.channel.send(embed=self.process_post(post)[0])
+            await message.channel.send(embed=self.process_post(post))
         
         self.logger.out_success(f'successfully fetched {range} posts.')
 
@@ -205,7 +205,7 @@ class EnforcerRed(discord.Client):
 
         for post in postList:
             #await message.channel.send(embed=self.post_to_embed(post, mode='compact'))
-            await message.channel.send(embed=self.process_post(post)[0])
+            await message.channel.send(embed=self.process_post(post))
 
         self.logger.out_success(f"Completed search for {outString}.")
 
@@ -244,9 +244,7 @@ class EnforcerRed(discord.Client):
             embedColor = discord.colour.Color.from_rgb(*self.colorTable["orange"]) #TODO: Add yellow color
         elif alertLevel > 1:
             embedColor = discord.colour.Color.from_rgb(*self.colorTable["red"])
-        return (self.post_to_embed(post, embedColor=embedColor, expanded=True), 
-                alertLevel, 
-                alerts)
+        return self.post_to_embed(post, embedColor=embedColor, expanded=True)
 
         
     def post_to_embed(self, post, embedColor=None, expanded=False, mode="compact"):
