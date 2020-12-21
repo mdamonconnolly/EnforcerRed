@@ -17,7 +17,7 @@ Commands can be called with the ! prefix, and queries with the ? prefix.
   
 * ?tinyfetch 20 - Same as above but uses a more compact embed in discord.
   
-* ?find u/testUser - The find command has 3 options. By entering a string of text, the bot will search for said string in the subreddit (titles and bodies of posts). By prefixing with a u/, the bot will search for a user. By prefixing with an r/ you can enter a regex statement and the bot will return posts with matches.
+* ?find u/testUser - The find command has 4 options. By entering a string of text, the bot will search for said string in the subreddit (titles and bodies of posts). By prefixing with a u/, the bot will search for a user. By prefixing with an r/ you can enter a regex statement and the bot will return posts with matches. Otherwise you can search a post directly with i/ to find it by postid. All of these searches will return the results saved in your max search field in the config except for i/, which will return just the 1 post that you searched for.
 
 <br/><br/>
 ## Config
